@@ -1,0 +1,178 @@
+version: "3.9"
+
+# ============================================================
+# Rusuh Booking Tiket — Local Dev Infrastructure
+# ============================================================
+# Usage:
+#   docker compose up -d              → start all infra
+#   docker compose up -d postgres     → start only postgres
+#   docker compose logs -f kafka      → tail kafka logs
+#   docker compose down               → stop + remove containers (data volumes preserved)
+#   docker compose down -v            → stop + remove containers AND volumes (wipe all data)
+#
+# Services on this compose:
+#   postgres   → port 5432  (shared DB for all services)
+#   redis      → port 6379  (Valkey-compatible; used by booking-service for Pub/Sub + cache)
+#   kafka      → port 9092  (internal), 29092 (host-accessible)
+#   kafka-ui   → port 8090  (Kafka UI — browse topics, messages)
+#
+# App services (run separately via `go run cmd/main.go` in each repo):
+#   booking-service  → port 8081
+#   event-service    → port 8082
+#   payment-service  → port 8083
+#   worker-service   → (no HTTP)
+# ============================================================
+
+services:
+
+  # ---- PostgreSQL -------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: rusuh_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: rusuh_booking
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rusuh_booking"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Redis (Valkey-compatible) ----------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: rusuh_redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---- Zookeeper (required by Kafka) ------------------------------------
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: rusuh_zookeeper
+    restart: unless-stopped
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper_data:/var/lib/zookeeper/data
+      - zookeeper_log:/var/lib/zookeeper/log
+    healthcheck:
+      test: ["CMD-SHELL", "echo ruok | timeout 2 bash -c 'cat > /dev/tcp/localhost/2181' && echo imok || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ---- Kafka -----------------------------------------------------------
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: rusuh_kafka
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "29092:29092"   # host-accessible (PLAINTEXT_HOST)
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+
+      # Dua listener:
+      # - PLAINTEXT         → container-to-container (kafka:9092)
+      # - PLAINTEXT_HOST    → host machine          (localhost:29092)
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+
+      # Retention singkat untuk dev (1 jam)
+      KAFKA_LOG_RETENTION_MS: 3600000
+      KAFKA_LOG_RETENTION_BYTES: 104857600  # 100 MB
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-topics --bootstrap-server localhost:9092 --list"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  # ---- Topic initializer (jalankan sekali saat pertama kali) ------------
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: rusuh_kafka_init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command: |
+      "
+      echo 'Creating Kafka topics...'
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic booking.created   --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic stock.changed     --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic slot.released     --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.succeeded --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.expired   --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic event.sold_out    --partitions 3 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic access.granted    --partitions 3 --replication-factor 1
+
+      # Retry topics untuk notification worker
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic booking.created.retry   --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.succeeded.retry --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.expired.retry   --partitions 1 --replication-factor 1
+
+      # Dead-letter topics
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic booking.created.dlt   --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.succeeded.dlt --partitions 1 --replication-factor 1
+      kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic payment.expired.dlt   --partitions 1 --replication-factor 1
+
+      echo 'Topics created successfully.'
+      kafka-topics --bootstrap-server kafka:9092 --list
+      "
+    restart: on-failure
+
+  # ---- Kafka UI (opsional tapi sangat berguna saat dev) -----------------
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: rusuh_kafka_ui
+    restart: unless-stopped
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8090:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: rusuh-local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+volumes:
+  postgres_data:
+  redis_data:
+  kafka_data:
+  zookeeper_data:
+  zookeeper_log:
+
+networks:
+  default:
+    name: rusuh_network
