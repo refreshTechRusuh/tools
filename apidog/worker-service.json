@@ -1,0 +1,100 @@
+{
+  "info": {
+    "name": "worker-service",
+    "description": "Rusuh Booking Tiket — Worker Service (port 8084). Kafka consumer only — tidak ada HTTP endpoint publik selain health check.",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8084",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sys/ping",
+              "host": ["{{base_url}}"],
+              "path": ["sys", "ping"]
+            },
+            "description": "Cek apakah worker-service hidup. Worker tidak expose HTTP endpoint untuk business logic — semua via Kafka consumer."
+          },
+          "response": [
+            {
+              "name": "OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\"status\":\"00000\",\"message\":\"pong\",\"data\":{}}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Kafka Events (Reference — tidak bisa di-hit via HTTP)",
+      "item": [
+        {
+          "name": "[INFO] booking.created → Email Instruksi Bayar",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sys/ping",
+              "host": ["{{base_url}}"],
+              "path": ["sys", "ping"]
+            },
+            "description": "BUKAN endpoint HTTP. Ini dokumentasi Kafka event yang di-consume worker.\n\nTopic: `booking.created`\nTriggered by: booking-service saat POST /api/v1/bookings berhasil.\n\nPayload:\n```json\n{\n  \"bookingId\": \"550e8400-...\",\n  \"eventId\": \"EVT-001\",\n  \"email\": \"budi@example.com\",\n  \"paymentExpiresAt\": \"2026-10-23T14:00:00Z\",\n  \"items\": [\n    {\n      \"categoryId\": \"CAT-VIP\",\n      \"ticketCode\": \"TKT-VIP-001\",\n      \"nik\": \"3273010101900001\",\n      \"price\": 500000\n    }\n  ]\n}\n```\n\nAksi worker: kirim email HTML #1 'Instruksi Pembayaran' ke `email`."
+          }
+        },
+        {
+          "name": "[INFO] payment.succeeded → Email E-Tiket Boarding Pass",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sys/ping",
+              "host": ["{{base_url}}"],
+              "path": ["sys", "ping"]
+            },
+            "description": "BUKAN endpoint HTTP. Ini dokumentasi Kafka event.\n\nTopic: `payment.succeeded`\nTriggered by: payment-service saat Midtrans callback settlement.\n\nPayload:\n```json\n{\n  \"paymentId\": \"660e8400-...\",\n  \"bookingId\": \"550e8400-...\",\n  \"eventId\": \"EVT-001\",\n  \"email\": \"budi@example.com\",\n  \"method\": \"qris\",\n  \"items\": [\n    {\n      \"categoryId\": \"CAT-VIP\",\n      \"ticketCode\": \"TKT-VIP-001\",\n      \"nik\": \"3273010101900001\",\n      \"nama\": \"Budi Santoso\",\n      \"price\": 500000\n    }\n  ]\n}\n```\n\nAksi worker: kirim email HTML #2 'E-Tiket Boarding Pass' ke `email`.\nIdempotency: `sync.Map` key = `bookingId:payment_succeeded` (1 email per booking)."
+          }
+        },
+        {
+          "name": "[INFO] payment.expired → Email Pembatalan",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sys/ping",
+              "host": ["{{base_url}}"],
+              "path": ["sys", "ping"]
+            },
+            "description": "BUKAN endpoint HTTP. Ini dokumentasi Kafka event.\n\nTopic: `payment.expired`\nTriggered by: payment-service TTL sweeper atau Midtrans callback expire/cancel.\n\nPayload:\n```json\n{\n  \"bookingId\": \"550e8400-...\",\n  \"eventId\": \"EVT-001\",\n  \"email\": \"budi@example.com\",\n  \"reason\": \"PAYMENT_TTL\"\n}\n```\n\nAksi worker: kirim email HTML #3 'Booking Dibatalkan' ke `email`.\nIdempotency: 1 email per booking."
+          }
+        },
+        {
+          "name": "[INFO] Retry & DLT Flow",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/sys/ping",
+              "host": ["{{base_url}}"],
+              "path": ["sys", "ping"]
+            },
+            "description": "Retry topics:\n- `booking.created.retry`\n- `payment.succeeded.retry`\n- `payment.expired.retry`\n\nDLT topics:\n- `booking.created.dlt`\n- `payment.succeeded.dlt`\n- `payment.expired.dlt`\n\nLogika: gagal kirim email → publish ke `.retry` (max 3x, backoff 5s/10s/20s) → setelah 3x publish ke `.dlt`.\n\nHeader tracking: `X-Retry-Count` per message."
+          }
+        }
+      ]
+    }
+  ]
+}
