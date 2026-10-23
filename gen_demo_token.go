@@ -1,11 +1,13 @@
 // gen_demo_token.go — Generate Access Token demo (tanpa Queue Service, tanpa dependency eksternal)
-// Digunakan saat sidang standalone (BE-2 demo tanpa BE-1).
 //
-// Run: go run gen_demo_token.go
-// Atau: source <(go run gen_demo_token.go)
+// Run:   go run gen_demo_token.go
+// Shell: source <(go run gen_demo_token.go)
 //
-// Hasilkan X-Access-Token yang valid untuk event seed Coldplay.
-// TTL 30 menit. Secret: dev-secret-change-in-production (sama dengan .env.local)
+// Hasilkan X-Access-Token valid untuk event seed Coldplay.
+// TTL 2 jam. Secret: dev-secret-change-in-production (sama dengan .env semua service).
+//
+// Override env:
+//   ACCESS_TOKEN_SECRET=secret EVENT_ID=uuid go run gen_demo_token.go
 
 package main
 
@@ -32,27 +34,29 @@ func main() {
 
 	eventID := os.Getenv("EVENT_ID")
 	if eventID == "" {
+		// Seed event: Coldplay Music of the Spheres 2026
 		eventID = "018f2c1a-0000-7000-8000-0000000000a1"
 	}
 
 	now := time.Now()
-	expiresAt := now.Add(30 * time.Minute)
+	ttl := 2 * time.Hour
+	expiresAt := now.Add(ttl)
 
 	// JWT header
 	header := map[string]string{"alg": "HS256", "typ": "JWT"}
 	hb, _ := json.Marshal(header)
 
-	// JWT claims
+	// JWT claims (sesuai AccessTokenClaims di booking-service)
 	claims := map[string]interface{}{
 		"eventId":             eventID,
-		"queueToken":          "demo-queue-token-sidang",
+		"queueToken":          "mock-queue-token-for-dev",
 		"bookingTtlExpiresAt": expiresAt.Unix(),
 		"exp":                 expiresAt.Unix(),
 		"iat":                 now.Unix(),
 	}
 	cb, _ := json.Marshal(claims)
 
-	// Sign
+	// Sign HS256
 	unsigned := b64(hb) + "." + b64(cb)
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write([]byte(unsigned))
@@ -60,11 +64,16 @@ func main() {
 
 	token := unsigned + "." + sig
 
+	// Output untuk `source <(...)`
 	fmt.Printf("export ACCESS_TOKEN=\"%s\"\n", token)
-	fmt.Fprintf(os.Stderr, "\n✅ Demo token generated\n")
-	fmt.Fprintf(os.Stderr, "   eventId : %s\n", eventID)
-	fmt.Fprintf(os.Stderr, "   expires : %s (+30 menit)\n", expiresAt.Format("15:04:05 WIB"))
+	fmt.Printf("export EVENT_ID=\"%s\"\n", eventID)
+
+	fmt.Fprintf(os.Stderr, "\n✅ Demo Access Token generated\n")
+	fmt.Fprintf(os.Stderr, "   eventId  : %s\n", eventID)
+	fmt.Fprintf(os.Stderr, "   secret   : %s\n", secret)
+	fmt.Fprintf(os.Stderr, "   expires  : %s (TTL %s)\n",
+		expiresAt.Format("15:04:05"), ttl)
 	fmt.Fprintf(os.Stderr, "\nUsage:\n")
-	fmt.Fprintf(os.Stderr, "   source <(go run gen_demo_token.go)\n")
-	fmt.Fprintf(os.Stderr, "   curl -H \"X-Access-Token: $ACCESS_TOKEN\" http://localhost:8081/api/v1/bookings\n\n")
+	fmt.Fprintf(os.Stderr, "  source <(go run gen_demo_token.go)\n")
+	fmt.Fprintf(os.Stderr, "  curl -H \"X-Access-Token: $ACCESS_TOKEN\" http://localhost:8081/api/v1/bookings ...\n\n")
 }
