@@ -1,0 +1,123 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-payment-service-rusuh",
+		"name": "payment-service",
+		"description": "Rusuh Booking Tiket — Payment Service (port 8083)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "base_url",     "value": "http://localhost:8083", "type": "string" },
+		{ "key": "access_token", "value": "GANTI_DENGAN_ACCESS_TOKEN", "type": "string" },
+		{ "key": "booking_id",   "value": "GANTI_DENGAN_BOOKING_ID",   "type": "string" }
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Ping",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/sys/ping",
+							"host": ["{{base_url}}"],
+							"path": ["sys", "ping"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Payment",
+			"item": [
+				{
+					"name": "Get Booking Payment Detail",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Access-Token",
+								"value": "{{access_token}}",
+								"type": "text",
+								"description": "WAJIB."
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{booking_id}}/payment",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{booking_id}}", "payment"]
+						},
+						"description": "Info pembayaran: total, metode tersedia, sisa TTL, snap token.\n\nLogika enabled per metode:\n- remainingSeconds < estSeconds -> enabled: false\n- Booking EXPIRED -> semua disabled + backDisabled: true\n\nEstimasi waktu metode:\n- qris / gopay: 30s\n- bca_va: 180s\n\nResponse contoh:\n{\n  \"bookingId\": \"uuid\",\n  \"total\": 500000,\n  \"remainingSeconds\": 540,\n  \"status\": \"HELD\",\n  \"backDisabled\": false,\n  \"snapToken\": \"\",\n  \"methods\": [\n    { \"code\": \"qris\",   \"name\": \"QRIS\",                \"estSeconds\": 30,  \"enabled\": true },\n    { \"code\": \"gopay\",  \"name\": \"GoPay\",               \"estSeconds\": 30,  \"enabled\": true },\n    { \"code\": \"bca_va\", \"name\": \"BCA Virtual Account\",  \"estSeconds\": 180, \"enabled\": true }\n  ]\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "Charge Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Access-Token",
+								"value": "{{access_token}}",
+								"type": "text",
+								"description": "WAJIB."
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bookingId\": \"{{booking_id}}\",\n  \"method\": \"qris\",\n  \"idempotencyKey\": \"idem-{{booking_id}}-qris-001\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/charge",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "payments", "charge"]
+						},
+						"description": "Mulai pembayaran via Midtrans Snap.\n\nIdempotency: jika booking sudah punya payment PENDING, return yang lama (Midtrans tidak di-charge ulang).\n\nMethod validation (server-side, bukan percaya klien):\n- remainingSeconds < estSeconds -> 409 METHOD_TIME_INSUFFICIENT\n- Booking status != HELD -> 410 BOOKING_EXPIRED\n\nMethod valid: qris | gopay | bca_va\n\nResponse contoh:\n{\n  \"paymentId\": \"uuid\",\n  \"status\": \"PENDING\",\n  \"snapToken\": \"abc123\",\n  \"redirectUrl\": \"https://app.sandbox.midtrans.com/snap/v2/vtweb/abc123\",\n  \"method\": \"qris\"\n}"
+					},
+					"response": []
+				},
+				{
+					"name": "Payment Callback (Midtrans Webhook)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_id\": \"{{booking_id}}\",\n  \"transaction_status\": \"settlement\",\n  \"status_code\": \"200\",\n  \"gross_amount\": \"500000.00\",\n  \"payment_type\": \"qris\",\n  \"signature_key\": \"GANTI_DENGAN_SHA512_HASH\",\n  \"fraud_status\": \"accept\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/callback",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "payments", "callback"]
+						},
+						"description": "Webhook dari Midtrans. TIDAK butuh auth — diverifikasi via signature_key.\n\nSignature: SHA512(order_id + status_code + gross_amount + MIDTRANS_SERVER_KEY)\n\nGenerate di terminal:\necho -n 'ORDER_ID200500000.00SERVER_KEY' | sha512sum\n\nIdempotency: INSERT ON CONFLICT DO NOTHING — 2x callback aman.\n\nStatus yang di-handle:\n- settlement / capture + fraud_status=accept -> booking PAID\n- expire / cancel / deny -> booking EXPIRED\n\nGross amount validation: nominal di callback harus cocok dengan total di DB."
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

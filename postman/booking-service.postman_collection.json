@@ -1,0 +1,137 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-booking-service-rusuh",
+		"name": "booking-service",
+		"description": "Rusuh Booking Tiket — Booking Service (port 8081)",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{ "key": "base_url",      "value": "http://localhost:8081", "type": "string" },
+		{ "key": "access_token",  "value": "GANTI_DENGAN_ACCESS_TOKEN", "type": "string", "description": "JWT dari Queue Service (POST /events/{id}/queue). Berisi claim eventId + bookingTtlExpiresAt." },
+		{ "key": "booking_id",    "value": "GANTI_DENGAN_BOOKING_ID", "type": "string" },
+		{ "key": "event_id",      "value": "EVT-001", "type": "string" }
+	],
+	"item": [
+		{
+			"name": "Health",
+			"item": [
+				{
+					"name": "Ping",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/sys/ping",
+							"host": ["{{base_url}}"],
+							"path": ["sys", "ping"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Booking",
+			"item": [
+				{
+					"name": "Create Booking",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "X-Access-Token",
+								"value": "{{access_token}}",
+								"type": "text",
+								"description": "WAJIB. JWT dari Queue Service. Tanpa ini -> 401."
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"eventId\": \"EVT-001\",\n  \"email\": \"budi@example.com\",\n  \"items\": [\n    {\n      \"categoryId\": \"CAT-VIP\",\n      \"attendees\": [\n        {\n          \"nik\": \"3273010101900001\",\n          \"nama\": \"Budi Santoso\",\n          \"tglLahir\": \"1990-01-01\",\n          \"namaIbu\": \"Siti Aminah\"\n        }\n      ]\n    }\n  ]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings"]
+						},
+						"description": "Buat booking baru. Response 200 (bukan 201).\n\nValidasi 6-step:\n1. eventId dari body == eventId dari Access Token\n2. Access Token belum expired (TTL)\n3. Max 3 tiket per booking\n4. 1 NIK = 1 tiket per booking\n5. Verifikasi NIK ke Dukcapil\n6. Hold stok atomic: UPDATE WHERE available >= qty\n\nSetelah sukses: publish booking.created + stock.changed ke Kafka."
+					},
+					"response": []
+				},
+				{
+					"name": "Get Booking Status",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Access-Token",
+								"value": "{{access_token}}",
+								"type": "text",
+								"description": "WAJIB."
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/bookings/{{booking_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "bookings", "{{booking_id}}"]
+						},
+						"description": "Status booking + sisa TTL pembayaran.\nbookingId bisa diambil dari response Create Booking.\n\nbackDisabled: true bila remainingSeconds < 30 (atau sudah EXPIRED). Dipakai FE untuk disable tombol back.\n\nResponse contoh:\n{\n  \"bookingId\": \"uuid\",\n  \"status\": \"HELD\",\n  \"remainingSeconds\": 540,\n  \"backDisabled\": false\n}"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "SSE - Stock Stream",
+			"item": [
+				{
+					"name": "Stream Stock (SSE)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Access-Token",
+								"value": "{{access_token}}",
+								"type": "text"
+							},
+							{
+								"key": "Accept",
+								"value": "text/event-stream",
+								"type": "text"
+							},
+							{
+								"key": "Cache-Control",
+								"value": "no-cache",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/events/{{event_id}}/stock/stream?categoryIds=CAT-VIP,CAT-REG",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "events", "{{event_id}}", "stock", "stream"],
+							"query": [
+								{
+									"key": "categoryIds",
+									"value": "CAT-VIP,CAT-REG",
+									"description": "Filter kategori (opsional). Comma-separated."
+								}
+							]
+						},
+						"description": "Server-Sent Events stream stok realtime.\n\nSaat connect langsung terima initial snapshot dari DB (tidak ada gap). Kemudian live update setiap ada perubahan stok.\n\nFormat frame:\nevent: stock\ndata: {\"eventId\":\"EVT-001\",\"categoryId\":\"CAT-VIP\",\"available\":37}\n\nFrame sold-out:\nevent: stock\ndata: {\"eventId\":\"EVT-001\",\"soldOut\":true}\n\nHeartbeat setiap 30 detik:\n: heartbeat\n\nNOTE: Postman tidak bisa render SSE stream. Gunakan curl:\ncurl -N -H 'X-Access-Token: TOKEN' http://localhost:8081/api/v1/events/EVT-001/stock/stream"
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

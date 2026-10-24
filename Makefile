@@ -2,7 +2,7 @@
 # Rusuh Booking Tiket — Root Makefile
 # ============================================================
 
-.PHONY: up down down-clean logs ps kafka-topics kafka-ui psql demo-token demo
+.PHONY: up down down-clean logs ps kafka-topics kafka-ui psql demo-token demo health mock-dukcapil check-stock check-bookings
 
 # Start semua infra (postgres, redis, kafka, kafka-ui)
 up:
@@ -68,7 +68,13 @@ health:
 	@echo ""
 	@echo "Kafka UI : http://localhost:8090"
 
-# Lihat stok terkini di DB
+# Jalankan mock-dukcapil service (pengganti BE-1 Dukcapil)
+# Port: 8085 — selalu return valid:true untuk NIK 16 digit
+mock-dukcapil:
+	@echo "🪪  Starting mock-dukcapil on :8085..."
+	cd mock-dukcapil && go run main.go
+
+# Cek stok terkini di DB
 check-stock:
 	docker exec rusuh_postgres psql -U postgres -d rusuh_booking \
 	  -c "SELECT tc.name, tc.available, tc.capacity, e.name as event FROM ticket_category tc JOIN event e ON e.id = tc.event_id ORDER BY e.name, tc.name;"
