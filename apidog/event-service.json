@@ -67,9 +67,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/v1/events",
+              "raw": "{{base_url}}/api/v1/events?page=1&size=10",
               "host": ["{{base_url}}"],
-              "path": ["api", "v1", "events"]
+              "path": ["api", "v1", "events"],
+              "query": [
+                { "key": "page", "value": "1", "description": "Halaman (1-based). Default 1." },
+                { "key": "size", "value": "10", "description": "Item per halaman. Default 10, maksimal 100." }
+              ]
             },
             "description": "Daftar semua event. Tidak butuh auth."
           },
@@ -132,9 +136,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/api/v1/admin/events",
+              "raw": "{{base_url}}/api/v1/admin/events?page=1&size=10",
               "host": ["{{base_url}}"],
-              "path": ["api", "v1", "admin", "events"]
+              "path": ["api", "v1", "admin", "events"],
+              "query": [
+                { "key": "page", "value": "1", "description": "Halaman (1-based). Default 1." },
+                { "key": "size", "value": "10", "description": "Item per halaman. Default 10, maksimal 100." }
+              ]
             }
           },
           "response": [
