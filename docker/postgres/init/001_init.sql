@@ -52,6 +52,36 @@ CREATE INDEX IF NOT EXISTS idx_booking_event_status   ON booking(event_id, statu
 CREATE INDEX IF NOT EXISTS idx_booking_item_nik        ON booking_item(nik);
 CREATE INDEX IF NOT EXISTS idx_booking_payment_expires ON booking(payment_expires_at) WHERE status = 'HELD';
 
+-- ---- dukcapil-mock (BE-1) ------------------------------------------
+-- Data kependudukan tiruan. verify mencocokkan {nik,nama,tgl_lahir,nama_ibu}.
+CREATE TABLE IF NOT EXISTS residents (
+    nik        CHAR(16) PRIMARY KEY,
+    nama       TEXT NOT NULL,
+    tgl_lahir  DATE NOT NULL,
+    nama_ibu   TEXT NOT NULL
+);
+
+INSERT INTO residents (nik, nama, tgl_lahir, nama_ibu) VALUES
+    ('3273000000000001', 'Budi Santoso',  '1990-01-01', 'Siti Aminah'),
+    ('3273000000000002', 'Ani Lestari',   '1992-05-17', 'Rina Marlina'),
+    ('3273000000000003', 'Candra Wijaya', '1988-11-30', 'Dewi Kartika'),
+    ('3273000000000004', 'Dedi Pratama',  '1995-07-09', 'Eka Yuliana'),
+    ('3273000000000005', 'Eka Putri',     '2000-03-25', 'Fitri Handayani')
+ON CONFLICT (nik) DO NOTHING;
+
+-- ---- user-service (BE-1) -------------------------------------------
+-- Akun login. id = UUID (di-generate aplikasi). email UNIK. role customer|admin.
+CREATE TABLE IF NOT EXISTS app_user (
+    id            UUID PRIMARY KEY,
+    email         TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'customer',
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    CONSTRAINT app_user_role_check CHECK (role IN ('customer','admin'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_app_user_email ON app_user(email);
+
 -- ---- payment-service -----------------------------------------------
 CREATE TABLE IF NOT EXISTS payment (
     id           UUID PRIMARY KEY,

@@ -1,5 +1,3 @@
-version: "3.9"
-
 # ============================================================
 # Rusuh Booking Tiket — Local Dev Infrastructure
 # ============================================================
@@ -16,7 +14,8 @@ version: "3.9"
 #   kafka      → port 9092  (internal), 29092 (host-accessible)
 #   kafka-ui   → port 8090  (Kafka UI — browse topics, messages)
 #
-# App services (run separately via `go run cmd/main.go` in each repo):
+# App services (run separately via `make run` / `go run ./cmd` in each repo):
+#   dukcapil-mock    → port 8085
 #   booking-service  → port 8081
 #   event-service    → port 8082
 #   payment-service  → port 8083
