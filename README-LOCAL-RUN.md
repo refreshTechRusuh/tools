@@ -121,12 +121,12 @@ Token berlaku **2 jam**. Generate ulang jika expired.
 
 ### 6.1 Lihat daftar event
 ```bash
-curl http://localhost:8082/api/v1/events | jq
+curl http://localhost:8082/api/event/v1/list | jq
 ```
 
 ### 6.2 Create Booking (butuh Access Token)
 ```bash
-curl -s -X POST http://localhost:8081/api/v1/bookings \
+curl -s -X POST http://localhost:8081/api/booking/v1/create \
   -H "X-Access-Token: $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -153,18 +153,18 @@ export BOOKING_ID="<uuid dari response>"
 ### 6.3 Lihat status booking
 ```bash
 curl -H "X-Access-Token: $ACCESS_TOKEN" \
-  http://localhost:8081/api/v1/bookings/$BOOKING_ID | jq
+  http://localhost:8081/api/booking/v1/$BOOKING_ID | jq
 ```
 
 ### 6.4 Lihat detail payment (metode tersedia)
 ```bash
 curl -H "X-Access-Token: $ACCESS_TOKEN" \
-  http://localhost:8083/api/v1/bookings/$BOOKING_ID/payment | jq
+  http://localhost:8083/api/booking/v1/$BOOKING_ID/payment | jq
 ```
 
 ### 6.5 Charge payment (Midtrans Snap)
 ```bash
-curl -s -X POST http://localhost:8083/api/v1/payments/charge \
+curl -s -X POST http://localhost:8083/api/payment/v1/charge \
   -H "X-Access-Token: $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -191,7 +191,7 @@ SERVER_KEY="SB-Mid-server-xxxx"   # ganti dengan server key kamu
 
 SIG=$(echo -n "${ORDER_ID}${STATUS_CODE}${GROSS_AMOUNT}${SERVER_KEY}" | shasum -a 512 | cut -d' ' -f1)
 
-curl -s -X POST http://localhost:8083/api/v1/payments/callback \
+curl -s -X POST http://localhost:8083/api/payment/v1/callback \
   -H "Content-Type: application/json" \
   -d '{
     "order_id": "'$BOOKING_ID'",

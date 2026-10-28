@@ -111,7 +111,7 @@ Output yang diharapkan:
 ### 🟢 Demo 1: Katalog event (publik, tanpa auth)
 
 ```bash
-curl -s http://localhost:8082/api/v1/events | python3 -m json.tool
+curl -s http://localhost:8082/api/event/v1/list | python3 -m json.tool
 ```
 
 Output menunjukkan 2 event seed + status.
@@ -122,7 +122,7 @@ Output menunjukkan 2 event seed + status.
 
 ```bash
 # Buat event baru
-curl -s -X POST http://localhost:8082/api/v1/admin/events \
+curl -s -X POST http://localhost:8082/api/event/v1/admin/create-event \
   -H "Content-Type: application/json" \
   -d '{"name":"Demo Sidang Concert","status":"on_sale"}' | python3 -m json.tool
 
@@ -143,7 +143,7 @@ Tunjukkan bahwa: **available = capacity = 10** saat dibuat.
 
 ```bash
 # Gunakan event seed yang sudah ada
-curl -s -X POST http://localhost:8081/api/v1/bookings \
+curl -s -X POST http://localhost:8081/api/booking/v1/create \
   -H "Content-Type: application/json" \
   -H "X-Access-Token: $ACCESS_TOKEN" \
   -d '{
@@ -172,7 +172,7 @@ curl -s -X POST http://localhost:8081/api/v1/bookings \
 
 ```bash
 # Buka di terminal terpisah SEBELUM melakukan booking:
-curl -N "http://localhost:8081/api/v1/events/018f2c1a-0000-7000-8000-0000000000a1/stock/stream" \
+curl -N "http://localhost:8081/api/booking/v1/event/018f2c1a-0000-7000-8000-0000000000a1/stock/stream" \
   -H "X-Access-Token: $ACCESS_TOKEN"
 ```
 
@@ -188,7 +188,7 @@ Lalu lakukan booking di terminal lain → lihat SSE menerima update `available` 
 
 ```bash
 BOOKING_ID="<dari-demo-3>"
-curl -s "http://localhost:8083/api/v1/bookings/$BOOKING_ID/payment" \
+curl -s "http://localhost:8083/api/booking/v1/$BOOKING_ID/payment" \
   -H "X-Access-Token: $ACCESS_TOKEN" | python3 -m json.tool
 ```
 
@@ -203,7 +203,7 @@ BOOKING_ID="<dari-demo-3>"
 # Hitung signature: sha512(bookingId + "200" + "1000000.00" + SERVER_KEY)
 SIGNATURE=$(echo -n "${BOOKING_ID}2001000000.00SB-Mid-server-xxxx" | sha512sum | cut -d' ' -f1)
 
-curl -s -X POST http://localhost:8083/api/v1/payments/callback \
+curl -s -X POST http://localhost:8083/api/payment/v1/callback \
   -H "Content-Type: application/json" \
   -d "{
     \"order_id\": \"$BOOKING_ID\",
@@ -217,7 +217,7 @@ curl -s -X POST http://localhost:8083/api/v1/payments/callback \
 
 Lalu cek booking:
 ```bash
-curl -s "http://localhost:8081/api/v1/bookings/$BOOKING_ID" \
+curl -s "http://localhost:8081/api/booking/v1/$BOOKING_ID" \
   -H "X-Access-Token: $ACCESS_TOKEN" | python3 -m json.tool
 # status harus berubah ke PAID
 ```

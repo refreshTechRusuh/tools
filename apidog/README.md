@@ -56,7 +56,7 @@ Apidog tidak bisa render SSE natively. Gunakan curl:
 curl -N \
   -H "X-Access-Token: $ACCESS_TOKEN" \
   -H "Accept: text/event-stream" \
-  "http://localhost:8081/api/v1/events/EVT-001/stock/stream"
+  "http://localhost:8081/api/booking/v1/event/EVT-001/stock/stream"
 ```
 
 ## Signature Midtrans Callback (untuk test)

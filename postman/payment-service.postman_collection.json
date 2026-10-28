@@ -45,9 +45,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/v1/bookings/{{booking_id}}/payment",
+							"raw": "{{base_url}}/api/payment/v1/booking/{{booking_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "bookings", "{{booking_id}}", "payment"]
+							"path": ["api", "payment", "v1", "booking", "{{booking_id}}"]
 						},
 						"description": "Info pembayaran: total, metode tersedia, sisa TTL, snap token.\n\nLogika enabled per metode:\n- remainingSeconds < estSeconds -> enabled: false\n- Booking EXPIRED -> semua disabled + backDisabled: true\n\nEstimasi waktu metode:\n- qris / gopay: 30s\n- bca_va: 180s\n\nResponse contoh:\n{\n  \"bookingId\": \"uuid\",\n  \"total\": 500000,\n  \"remainingSeconds\": 540,\n  \"status\": \"HELD\",\n  \"backDisabled\": false,\n  \"snapToken\": \"\",\n  \"methods\": [\n    { \"code\": \"qris\",   \"name\": \"QRIS\",                \"estSeconds\": 30,  \"enabled\": true },\n    { \"code\": \"gopay\",  \"name\": \"GoPay\",               \"estSeconds\": 30,  \"enabled\": true },\n    { \"code\": \"bca_va\", \"name\": \"BCA Virtual Account\",  \"estSeconds\": 180, \"enabled\": true }\n  ]\n}"
 					},
@@ -80,9 +80,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/payments/charge",
+							"raw": "{{base_url}}/api/payment/v1/charge",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "payments", "charge"]
+							"path": ["api", "payment", "v1", "charge"]
 						},
 						"description": "Mulai pembayaran via Midtrans Snap.\n\nIdempotency: jika booking sudah punya payment PENDING, return yang lama (Midtrans tidak di-charge ulang).\n\nMethod validation (server-side, bukan percaya klien):\n- remainingSeconds < estSeconds -> 409 METHOD_TIME_INSUFFICIENT\n- Booking status != HELD -> 410 BOOKING_EXPIRED\n\nMethod valid: qris | gopay | bca_va\n\nResponse contoh:\n{\n  \"paymentId\": \"uuid\",\n  \"status\": \"PENDING\",\n  \"snapToken\": \"abc123\",\n  \"redirectUrl\": \"https://app.sandbox.midtrans.com/snap/v2/vtweb/abc123\",\n  \"method\": \"qris\"\n}"
 					},
@@ -109,9 +109,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/payments/callback",
+							"raw": "{{base_url}}/api/payment/v1/callback",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "payments", "callback"]
+							"path": ["api", "payment", "v1", "callback"]
 						},
 						"description": "Webhook dari Midtrans. TIDAK butuh auth — diverifikasi via signature_key.\n\nSignature: SHA512(order_id + status_code + gross_amount + MIDTRANS_SERVER_KEY)\n\nGenerate di terminal:\necho -n 'ORDER_ID200500000.00SERVER_KEY' | sha512sum\n\nIdempotency: INSERT ON CONFLICT DO NOTHING — 2x callback aman.\n\nStatus yang di-handle:\n- settlement / capture + fraud_status=accept -> booking PAID\n- expire / cancel / deny -> booking EXPIRED\n\nGross amount validation: nominal di callback harus cocok dengan total di DB."
 					},

@@ -40,9 +40,9 @@
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/events",
+							"raw": "{{base_url}}/api/event/v1/list",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "events"]
+							"path": ["api", "event", "v1", "list"]
 						},
 						"description": "Daftar semua event. Tidak butuh auth."
 					},
@@ -60,9 +60,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/v1/events/{{event_id}}",
+							"raw": "{{base_url}}/api/event/v1/detail/{{event_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "events", "{{event_id}}"]
+							"path": ["api", "event", "v1", "detail", "{{event_id}}"]
 						},
 						"description": "Detail event beserta kategori tiket dan stok. Butuh user JWT."
 					},
@@ -85,9 +85,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/v1/admin/events",
+							"raw": "{{base_url}}/api/event/v1/admin/list-event",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "admin", "events"]
+							"path": ["api", "event", "v1", "admin", "list-event"]
 						}
 					},
 					"response": []
@@ -118,9 +118,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/admin/events",
+							"raw": "{{base_url}}/api/event/v1/admin/create-event",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "admin", "events"]
+							"path": ["api", "event", "v1", "admin", "create-event"]
 						},
 						"description": "Buat event baru. `status` opsional — default: draft.\nNilai valid: draft | on_sale | closed"
 					},
@@ -152,9 +152,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/admin/events/{{event_id}}",
+							"raw": "{{base_url}}/api/event/v1/admin/update-event/{{event_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "admin", "events", "{{event_id}}"]
+							"path": ["api", "event", "v1", "admin", "update-event", "{{event_id}}"]
 						}
 					},
 					"response": []
@@ -171,9 +171,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/v1/admin/events/{{event_id}}",
+							"raw": "{{base_url}}/api/event/v1/admin/delete-event/{{event_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "admin", "events", "{{event_id}}"]
+							"path": ["api", "event", "v1", "admin", "delete-event", "{{event_id}}"]
 						}
 					},
 					"response": []
@@ -204,9 +204,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/admin/events/{{event_id}}/categories",
+							"raw": "{{base_url}}/api/event/v1/admin/{{event_id}}/create-category",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "admin", "events", "{{event_id}}", "categories"]
+							"path": ["api", "event", "v1", "admin", "{{event_id}}", "create-category"]
 						},
 						"description": "Tambah kategori tiket ke event.\nGuard: capacity_baru - tiket_terjual tidak boleh < 0."
 					},
@@ -238,9 +238,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/admin/categories/{{category_id}}",
+							"raw": "{{base_url}}/api/event/v1/admin/{{category_id}}/update-category",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "admin", "categories", "{{category_id}}"]
+							"path": ["api", "event", "v1", "admin", "{{category_id}}", "update-category"]
 						},
 						"description": "Update kategori. Guard: capacity_baru - tiket_terjual tidak boleh < 0."
 					},
@@ -257,9 +257,9 @@
 						"method": "POST",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/internal/events/{{event_id}}/sold-out",
+							"raw": "{{base_url}}/internal/event/v1/{{event_id}}/sold-out",
 							"host": ["{{base_url}}"],
-							"path": ["internal", "events", "{{event_id}}", "sold-out"]
+							"path": ["internal", "event", "v1", "{{event_id}}", "sold-out"]
 						},
 						"description": "Dipanggil booking-service saat sold-out terdeteksi. Idempoten."
 					},

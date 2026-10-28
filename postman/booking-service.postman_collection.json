@@ -60,9 +60,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/bookings",
+							"raw": "{{base_url}}/api/booking/v1/create",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "bookings"]
+							"path": ["api", "booking", "v1", "create"]
 						},
 						"description": "Buat booking baru. Response 200 (bukan 201).\n\nValidasi 6-step:\n1. eventId dari body == eventId dari Access Token\n2. Access Token belum expired (TTL)\n3. Max 3 tiket per booking\n4. 1 NIK = 1 tiket per booking\n5. Verifikasi NIK ke Dukcapil\n6. Hold stok atomic: UPDATE WHERE available >= qty\n\nSetelah sukses: publish booking.created + stock.changed ke Kafka."
 					},
@@ -81,9 +81,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/v1/bookings/{{booking_id}}",
+							"raw": "{{base_url}}/api/booking/v1/{{booking_id}}",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "bookings", "{{booking_id}}"]
+							"path": ["api", "booking", "v1", "{{booking_id}}"]
 						},
 						"description": "Status booking + sisa TTL pembayaran.\nbookingId bisa diambil dari response Create Booking.\n\nbackDisabled: true bila remainingSeconds < 30 (atau sudah EXPIRED). Dipakai FE untuk disable tombol back.\n\nResponse contoh:\n{\n  \"bookingId\": \"uuid\",\n  \"status\": \"HELD\",\n  \"remainingSeconds\": 540,\n  \"backDisabled\": false\n}"
 					},
@@ -116,9 +116,9 @@
 							}
 						],
 						"url": {
-							"raw": "{{base_url}}/api/v1/events/{{event_id}}/stock/stream?categoryIds=CAT-VIP,CAT-REG",
+							"raw": "{{base_url}}/api/booking/v1/event/{{event_id}}/stock/stream?categoryIds=CAT-VIP,CAT-REG",
 							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "events", "{{event_id}}", "stock", "stream"],
+							"path": ["api", "booking", "v1", "event", "{{event_id}}", "stock", "stream"],
 							"query": [
 								{
 									"key": "categoryIds",
@@ -127,7 +127,7 @@
 								}
 							]
 						},
-						"description": "Server-Sent Events stream stok realtime.\n\nSaat connect langsung terima initial snapshot dari DB (tidak ada gap). Kemudian live update setiap ada perubahan stok.\n\nFormat frame:\nevent: stock\ndata: {\"eventId\":\"EVT-001\",\"categoryId\":\"CAT-VIP\",\"available\":37}\n\nFrame sold-out:\nevent: stock\ndata: {\"eventId\":\"EVT-001\",\"soldOut\":true}\n\nHeartbeat setiap 30 detik:\n: heartbeat\n\nNOTE: Postman tidak bisa render SSE stream. Gunakan curl:\ncurl -N -H 'X-Access-Token: TOKEN' http://localhost:8081/api/v1/events/EVT-001/stock/stream"
+						"description": "Server-Sent Events stream stok realtime.\n\nSaat connect langsung terima initial snapshot dari DB (tidak ada gap). Kemudian live update setiap ada perubahan stok.\n\nFormat frame:\nevent: stock\ndata: {\"eventId\":\"EVT-001\",\"categoryId\":\"CAT-VIP\",\"available\":37}\n\nFrame sold-out:\nevent: stock\ndata: {\"eventId\":\"EVT-001\",\"soldOut\":true}\n\nHeartbeat setiap 30 detik:\n: heartbeat\n\nNOTE: Postman tidak bisa render SSE stream. Gunakan curl:\ncurl -N -H 'X-Access-Token: TOKEN' http://localhost:8081/api/booking/v1/event/EVT-001/stock/stream"
 					},
 					"response": []
 				}

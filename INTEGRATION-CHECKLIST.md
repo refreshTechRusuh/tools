@@ -29,7 +29,7 @@ Cari semua titik di codebase dengan: `grep -rn "TODO(BE-1" --include="*.go"`
 **Validasi setelah integrasi:**
 ```bash
 # Token dari Queue Service BE-1 harus bisa di-verify:
-curl -H "X-Access-Token: <token dari BE-1>" http://localhost:8081/api/v1/bookings -v
+curl -H "X-Access-Token: <token dari BE-1>" http://localhost:8081/api/booking/v1 -v
 # Harus 400 (body kosong), bukan 401
 ```
 
@@ -157,7 +157,7 @@ ACCESS_TOKEN=$(curl -s -X POST http://<BE1_HOST>/api/v1/events/<EVENT_ID>/queue 
   -d '{}' | jq -r '.data.accessToken')
 
 # 6. Test create booking dengan token BE-1:
-curl -X POST http://localhost:8081/api/v1/bookings \
+curl -X POST http://localhost:8081/api/booking/v1/create \
   -H "X-Access-Token: $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{ "eventId": "...", "email": "...", "items": [...] }'
