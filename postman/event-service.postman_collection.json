@@ -238,9 +238,9 @@
 							}
 						},
 						"url": {
-							"raw": "{{base_url}}/api/event/v1/admin/{{category_id}}/update-category",
+							"raw": "{{base_url}}/api/event/v1/admin/category/{{category_id}}/update-category",
 							"host": ["{{base_url}}"],
-							"path": ["api", "event", "v1", "admin", "{{category_id}}", "update-category"]
+							"path": ["api", "event", "v1", "admin", "category", "{{category_id}}", "update-category"]
 						},
 						"description": "Update kategori. Guard: capacity_baru - tiket_terjual tidak boleh < 0."
 					},
