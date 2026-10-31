@@ -8,6 +8,12 @@
 //
 // Override env:
 //   ACCESS_TOKEN_SECRET=secret EVENT_ID=uuid go run gen_demo_token.go
+//
+// Flag:
+//   --event-id <uuid>       Override eventId (atau gunakan env EVENT_ID)
+//   --expires-at <unix>     Set bookingTtlExpiresAt ke unix timestamp tertentu
+//                           (pakai 1 untuk masa lalu = expired token, test INT-4)
+//   --raw                   Output hanya token (tanpa export shell syntax)
 
 package main
 
@@ -18,6 +24,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -41,6 +48,29 @@ func main() {
 	now := time.Now()
 	ttl := 2 * time.Hour
 	expiresAt := now.Add(ttl)
+	rawOutput := false
+
+	// Parse flags
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--event-id":
+			if i+1 < len(args) {
+				eventID = args[i+1]
+				i++
+			}
+		case "--expires-at":
+			if i+1 < len(args) {
+				ts, err := strconv.ParseInt(args[i+1], 10, 64)
+				if err == nil {
+					expiresAt = time.Unix(ts, 0)
+				}
+				i++
+			}
+		case "--raw":
+			rawOutput = true
+		}
+	}
 
 	// JWT header
 	header := map[string]string{"alg": "HS256", "typ": "JWT"}
@@ -64,16 +94,28 @@ func main() {
 
 	token := unsigned + "." + sig
 
+	if rawOutput {
+		// Output token saja — untuk dipakai langsung di script
+		fmt.Print(token)
+		return
+	}
+
 	// Output untuk `source <(...)`
 	fmt.Printf("export ACCESS_TOKEN=\"%s\"\n", token)
 	fmt.Printf("export EVENT_ID=\"%s\"\n", eventID)
 
+	expired := expiresAt.Before(now)
+	expiredMark := ""
+	if expired {
+		expiredMark = " ⚠️  EXPIRED (untuk negative test)"
+	}
+
 	fmt.Fprintf(os.Stderr, "\n✅ Demo Access Token generated\n")
 	fmt.Fprintf(os.Stderr, "   eventId  : %s\n", eventID)
 	fmt.Fprintf(os.Stderr, "   secret   : %s\n", secret)
-	fmt.Fprintf(os.Stderr, "   expires  : %s (TTL %s)\n",
-		expiresAt.Format("15:04:05"), ttl)
+	fmt.Fprintf(os.Stderr, "   expires  : %s (TTL %s)%s\n",
+		expiresAt.Format("15:04:05"), ttl, expiredMark)
 	fmt.Fprintf(os.Stderr, "\nUsage:\n")
 	fmt.Fprintf(os.Stderr, "  source <(go run gen_demo_token.go)\n")
-	fmt.Fprintf(os.Stderr, "  curl -H \"X-Access-Token: $ACCESS_TOKEN\" http://localhost:8081/api/v1/bookings ...\n\n")
+	fmt.Fprintf(os.Stderr, "  curl -H \"X-Access-Token: $ACCESS_TOKEN\" http://localhost:8081/api/booking/v1/create ...\n\n")
 }
