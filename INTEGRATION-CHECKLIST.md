@@ -143,6 +143,23 @@ Komponen-komponen berikut **tidak bergantung pada BE-1** dan sudah siap:
 
 ---
 
+## 7. Bug Fix yang Sudah Diterapkan ✅
+
+### `stock.changed` — `Available` Aktual (bukan -1)
+
+**File:** `booking-service/internal/booking/application/usecase/create_booking.go`
+
+**Masalah sebelumnya:** `publishPostBooking` mengirim `Available: -1` ke Kafka saat booking HOLD.
+Queue-service menyimpan `-1` ke Redis, menyebabkan kategori yang di-hold tidak dihitung
+dalam `roomcap` → cap booking room jauh lebih kecil dari seharusnya.
+
+**Fix:** Snapshot DB (`GetAvailableByEvent`) dipindahkan sebelum loop Kafka publish.
+Satu kali baca DB dipakai untuk mengisi `Available` aktual di Kafka **dan** Redis SSE.
+
+**Referensi:** `docs/bug_stock_changed_available_minus_one.md`
+
+---
+
 ## Quick Integration Test Setelah BE-1 Siap
 
 ```bash

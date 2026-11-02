@@ -32,8 +32,8 @@ type verifyResponse struct {
 func main() {
 	mux := http.NewServeMux()
 
-	// POST /internal/dukcapil/verify
-	mux.HandleFunc("POST /internal/dukcapil/verify", func(w http.ResponseWriter, r *http.Request) {
+	// POST /api/dukcapil/v1/verify
+	mux.HandleFunc("POST /api/dukcapil/v1/verify", func(w http.ResponseWriter, r *http.Request) {
 		var req verifyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, `{"status":"400","message":"invalid body"}`, http.StatusBadRequest)
@@ -67,7 +67,7 @@ func main() {
 	}
 
 	log.Println("🪪  mock-dukcapil listening on :8085")
-	log.Println("   POST /internal/dukcapil/verify  → always valid=true (16-digit NIK)")
+	log.Println("   POST /api/dukcapil/v1/verify  → always valid=true (16-digit NIK)")
 	log.Println("   GET  /sys/ping                  → health check")
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatal(err)
