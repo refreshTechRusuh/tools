@@ -1,15 +1,15 @@
-# Panduan Run Lokal BE-2 (Tanpa BE-1)
+# Panduan Run Lokal BE-2
 
-Dokumen ini menjelaskan cara menjalankan semua service BE-2 secara mandiri tanpa bergantung pada BE-1 (Queue Service).
+Dokumen ini menjelaskan cara menjalankan service BE-2 secara lokal. Queue token dapat dibuat dengan generator demo, sedangkan verifikasi Dukcapil memerlukan endpoint BE-1 yang dapat diakses.
 
 ---
 
-## Yang di-mock dari BE-1
+## Komponen BE-1 untuk run lokal
 
 | Komponen BE-1 | Solusi |
 |---|---|
 | Queue Service (Access Token JWT) | `gen_demo_token.go` — generate token langsung |
-| Dukcapil Verification API | `mock-dukcapil/` — always valid untuk NIK 16 digit |
+| Dukcapil Verification API | Endpoint BE-1 yang dikonfigurasi melalui `DUKCAPIL_BASE_URL` |
 
 ---
 
@@ -52,43 +52,27 @@ docker compose ps
 
 ---
 
-## Step 3: Jalankan mock-dukcapil (Terminal 1)
+## Step 3: Jalankan 4 service (Terminal 1-4)
 
-```bash
-cd "/Users/alifsn/Documents/master-code/telkomsel/assessment 2026"
-make mock-dukcapil
-# → 🪪  mock-dukcapil listening on :8085
-```
-
-Verifikasi:
-```bash
-curl http://localhost:8085/sys/ping
-# → {"status":"00000","message":"mock-dukcapil ok","data":{}}
-```
-
----
-
-## Step 4: Jalankan 4 service (Terminal 2-5)
-
-**Terminal 2 — event-service (port 8082):**
+**Terminal 1 — event-service (port 8082):**
 ```bash
 cd "/Users/alifsn/Documents/master-code/telkomsel/assessment 2026/event-service"
 make run
 ```
 
-**Terminal 3 — booking-service (port 8081):**
+**Terminal 2 — booking-service (port 8081):**
 ```bash
 cd "/Users/alifsn/Documents/master-code/telkomsel/assessment 2026/booking-service"
 make run
 ```
 
-**Terminal 4 — payment-service (port 8083):**
+**Terminal 3 — payment-service (port 8083):**
 ```bash
 cd "/Users/alifsn/Documents/master-code/telkomsel/assessment 2026/payment-service"
 make run
 ```
 
-**Terminal 5 — worker-service:**
+**Terminal 4 — worker-service:**
 ```bash
 cd "/Users/alifsn/Documents/master-code/telkomsel/assessment 2026/worker-service"
 make run
@@ -102,7 +86,7 @@ make health
 
 ---
 
-## Step 5: Generate Access Token
+## Step 4: Generate Access Token
 
 ```bash
 cd "/Users/alifsn/Documents/master-code/telkomsel/assessment 2026"
@@ -117,7 +101,7 @@ Token berlaku **2 jam**. Generate ulang jika expired.
 
 ---
 
-## Step 6: Demo alur lengkap
+## Step 5: Demo alur lengkap
 
 ### 6.1 Lihat daftar event
 ```bash
@@ -211,7 +195,7 @@ curl -s -X POST http://localhost:8083/api/v1/payments/callback \
 ## Checklist setelah semua step di atas
 
 - [ ] `make health` → semua ✅
-- [ ] `mock-dukcapil` running di :8085
+- [ ] Endpoint Dukcapil BE-1 dapat diakses oleh `booking-service`
 - [ ] Event list muncul dari event-service
 - [ ] Booking berhasil dibuat (status HELD)
 - [ ] Email #1 masuk di inbox `alifsnurdianto@gmail.com`
@@ -226,7 +210,7 @@ curl -s -X POST http://localhost:8083/api/v1/payments/callback \
 | Problem | Fix |
 |---|---|
 | `ACCESS_TOKEN tidak valid` | `source <(go run gen_demo_token.go)` ulang |
-| `dukcapil service unreachable` | Pastikan `make mock-dukcapil` running |
+| `dukcapil service unreachable` | Pastikan endpoint BE-1 aktif dan `DUKCAPIL_BASE_URL` benar |
 | `kafka publish failed` | Cek `docker compose ps` — kafka harus healthy |
 | `MIDTRANS_SERVER_KEY` kosong | Isi di `payment-service/.env` |
 | Email tidak masuk | Cek worker-service log, cek spam folder |

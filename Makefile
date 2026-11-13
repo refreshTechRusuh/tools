@@ -2,7 +2,7 @@
 # Rusuh Booking Tiket — Root Makefile
 # ============================================================
 
-.PHONY: up down down-clean logs ps kafka-topics kafka-ui psql demo-token demo health mock-dukcapil check-stock check-bookings
+.PHONY: up down down-clean logs ps kafka-topics kafka-ui psql demo-token demo health check-stock check-bookings
 
 # Start semua infra (postgres, redis, kafka, kafka-ui)
 up:
@@ -67,12 +67,6 @@ health:
 	@curl -sf http://localhost:8083/sys/ping > /dev/null && echo "✅ payment-service:8083" || echo "❌ payment-service:8083 (down)"
 	@echo ""
 	@echo "Kafka UI : http://localhost:8090"
-
-# Jalankan mock-dukcapil service (pengganti BE-1 Dukcapil)
-# Port: 8085 — selalu return valid:true untuk NIK 16 digit
-mock-dukcapil:
-	@echo "🪪  Starting mock-dukcapil on :8085..."
-	cd mock-dukcapil && go run main.go
 
 # Cek stok terkini di DB
 check-stock:

@@ -37,7 +37,7 @@ curl -H "X-Access-Token: <token dari BE-1>" http://localhost:8081/api/v1/booking
 
 ## 2. Dukcapil Verification Service
 
-**Status saat ini:** mock dengan `mock-dukcapil/main.go` di port 8085 — selalu return `valid:true`
+**Status saat ini:** mock Dukcapil lokal sudah dihapus dari repo `tools`; integrasi booking memerlukan endpoint Dukcapil BE-1.
 
 **File yang perlu diubah:**
 - `booking-service/.env` → `DUKCAPIL_BASE_URL=<URL dari BE-1>`
@@ -59,7 +59,7 @@ curl -H "X-Access-Token: <token dari BE-1>" http://localhost:8081/api/v1/booking
 
 **Validasi setelah integrasi:**
 ```bash
-# Hentikan mock-dukcapil, ubah DUKCAPIL_BASE_URL ke URL BE-1, restart booking-service
+# Ubah DUKCAPIL_BASE_URL ke URL BE-1, lalu restart booking-service
 # Test booking dengan NIK valid → harus lewat
 # Test booking dengan NIK invalid (13 digit) → harus 400 NIK_INVALID
 ```
@@ -99,14 +99,13 @@ type AccessTokenClaims struct {
 
 ---
 
-## 4. Mock Service yang Harus Dihentikan
+## 4. Komponen Demo yang Diganti Saat Integrasi
 
-Saat BE-1 sudah running:
+Saat Queue Service BE-1 sudah running:
 
-| Mock | Port | Ganti dengan |
-|------|------|--------------|
-| `mock-dukcapil/main.go` | 8085 | Dukcapil service dari BE-1 |
-| `gen_demo_token.go` | — | Token nyata dari `POST /events/{id}/queue` BE-1 |
+| Komponen lokal | Ganti dengan |
+|----------------|--------------|
+| `gen_demo_token.go` | Token nyata dari `POST /events/{id}/queue` BE-1 |
 
 ---
 
@@ -115,8 +114,8 @@ Saat BE-1 sudah running:
 ```bash
 # booking-service/.env
 ACCESS_TOKEN_SECRET=<dari BE-1>          # ganti dev-secret
-DUKCAPIL_BASE_URL=<URL dari BE-1>        # ganti http://localhost:8085
-DUKCAPIL_FAIL_OPEN=false                 # ganti true → false
+DUKCAPIL_BASE_URL=<URL dari BE-1>
+DUKCAPIL_FAIL_OPEN=false
 
 # event-service/.env
 ACCESS_TOKEN_SECRET=<dari BE-1>          # ganti dev-secret
@@ -147,16 +146,15 @@ Komponen-komponen berikut **tidak bergantung pada BE-1** dan sudah siap:
 
 ```bash
 # 1. Update .env semua service dengan ACCESS_TOKEN_SECRET dari BE-1
-# 2. Stop mock-dukcapil
-# 3. Update DUKCAPIL_BASE_URL ke BE-1
-# 4. Restart semua service
+# 2. Update DUKCAPIL_BASE_URL ke BE-1
+# 3. Restart semua service
 
-# 5. Dapatkan token nyata dari Queue Service:
+# 4. Dapatkan token nyata dari Queue Service:
 ACCESS_TOKEN=$(curl -s -X POST http://<BE1_HOST>/api/v1/events/<EVENT_ID>/queue \
   -H "Content-Type: application/json" \
   -d '{}' | jq -r '.data.accessToken')
 
-# 6. Test create booking dengan token BE-1:
+# 5. Test create booking dengan token BE-1:
 curl -X POST http://localhost:8081/api/v1/bookings \
   -H "X-Access-Token: $ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
