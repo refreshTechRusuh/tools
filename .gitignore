@@ -12,3 +12,6 @@
 # Logs
 *.log
 *.tmp
+
+load-tests/results
+k6-sse
